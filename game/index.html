@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Palmera Bay: Vice Run 3D</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#1a1210; font-family:'Segoe UI',Arial,sans-serif; }
+  #game { position:fixed; inset:0; }
+  canvas.webgl { display:block; }
+  .panel { position:fixed; background:rgba(12,14,22,.72); border:1px solid rgba(255,255,255,.14);
+           border-radius:12px; color:#f4f1e6; padding:10px 14px; backdrop-filter: blur(4px); z-index:5; }
+  #stats { top:14px; left:14px; min-width:210px; }
+  #cash { font-size:26px; font-weight:800; color:#7CFC98; letter-spacing:.5px; }
+  #respect { font-size:12px; color:#ffd166; font-weight:700; margin-left:8px; }
+  .bar { height:9px; background:rgba(255,255,255,.15); border-radius:5px; margin-top:7px; overflow:hidden; }
+  #healthFill { height:100%; width:100%; background:linear-gradient(90deg,#e4572e,#f2d13c,#7CFC98); border-radius:5px; transition:width .2s; }
+  #mode { font-size:11px; color:#bcd7ff; margin-top:6px; letter-spacing:1.2px; text-transform:uppercase; }
+  #wantedBox { top:14px; right:14px; text-align:right; }
+  #stars { font-size:22px; color:#ffd166; letter-spacing:3px; text-shadow:0 0 8px rgba(255,209,102,.6); }
+  #stars .off { color:rgba(255,255,255,.18); text-shadow:none; }
+  #district { font-size:12px; color:#f4f1e6; margin-top:2px; }
+  #pursuit { font-size:10px; color:#ff8a7a; letter-spacing:1.5px; }
+  #minimap { position:fixed; top:118px; right:14px; border-radius:12px; border:1px solid rgba(255,255,255,.2); z-index:5; }
+  #objective { left:50%; transform:translateX(-50%); top:16px; text-align:center; max-width:520px; }
+  #objTitle { color:#ffd166; font-weight:800; letter-spacing:2px; font-size:14px; }
+  #objText { font-size:13px; margin-top:2px; }
+  #phone { left:14px; bottom:96px; max-width:300px; border-left:4px solid #7CFC98; opacity:0; transition:opacity .4s; }
+  #phone .from { color:#7CFC98; font-size:11px; font-weight:800; letter-spacing:1.5px; }
+  #phone .msg { font-size:13.5px; margin-top:3px; line-height:1.35; }
+  #ammoBox { left:14px; bottom:14px; text-align:left; }
+  #weapon { font-size:11px; letter-spacing:2px; color:#bcd7ff; }
+  #ammo { font-size:24px; font-weight:800; }
+  #speedo { right:14px; bottom:14px; text-align:center; min-width:96px; }
+  #speed { font-size:30px; font-weight:800; } #speedo .unit { font-size:11px; color:#bcd7ff; }
+  #centerMsg { position:fixed; inset:0; display:none; align-items:center; justify-content:center; z-index:8;
+               font-size:64px; font-weight:900; letter-spacing:8px; color:#ff4747; text-shadow:0 4px 30px rgba(0,0,0,.8); }
+  #prompt { left:50%; transform:translateX(-50%); bottom:110px; font-size:14px; display:none; }
+  #prompt b { color:#ffd166; }
+  #title { position:fixed; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+           padding-bottom:6vh; pointer-events:none; }
+  #title h1 { font-size:64px; font-weight:900; letter-spacing:4px; color:#ffd166;
+              text-shadow:0 3px 0 #e4572e, 0 8px 34px rgba(0,0,0,.65); }
+  #title h2 { font-size:19px; letter-spacing:9px; color:#ff7bac; font-weight:700; margin-top:2px; text-shadow:0 2px 12px rgba(0,0,0,.7); }
+  #title p { margin-top:16px; max-width:560px; text-align:center; color:#fdf6e3; font-size:15px; line-height:1.45;
+             text-shadow:0 1px 8px rgba(0,0,0,.9); }
+  #title p b { color:#ffd166; }
+  #title .controls { margin-top:12px; font-size:12px; color:#e8e4da; text-align:center; line-height:1.7; text-shadow:0 1px 6px #000; }
+  #title .btns { margin-top:18px; display:flex; gap:12px; pointer-events:auto; }
+  #title button { font-size:16px; font-weight:800; letter-spacing:1px; padding:12px 26px; border-radius:10px; border:none;
+                  cursor:pointer; background:#ffd166; color:#40260a; box-shadow:0 4px 18px rgba(0,0,0,.5); }
+  #title button.ghost { background:rgba(12,14,22,.75); color:#f4f1e6; border:1px solid rgba(255,255,255,.35); }
+  #title .hint { margin-top:10px; font-size:13px; color:#7CFC98; font-weight:700; letter-spacing:1px; text-shadow:0 1px 6px #000; }
+  .hidden { display:none !important; }
+</style>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="game"></div>
+
+<div id="stats" class="panel">
+  <div><span id="cash">$250</span><span id="respect">RESPECT ★ 0</span></div>
+  <div class="bar"><div id="healthFill"></div></div>
+  <div id="mode">ON FOOT</div>
+</div>
+<div id="wantedBox" class="panel">
+  <div id="stars"></div>
+  <div id="district">Marina Mile</div>
+  <div id="pursuit"></div>
+</div>
+<canvas id="minimap" width="172" height="172"></canvas>
+<div id="objective" class="panel"><div id="objTitle"></div><div id="objText"></div></div>
+<div id="phone" class="panel"><div class="from">MARISOL VEGA</div><div class="msg" id="phoneMsg"></div></div>
+<div id="ammoBox" class="panel"><div id="weapon">PISTOL</div><div id="ammo">12 / ∞</div></div>
+<div id="speedo" class="panel"><span id="speed">0</span> <span class="unit">km/h</span></div>
+<div id="prompt" class="panel"></div>
+<div id="centerMsg"></div>
+
+<div id="title">
+  <h1>PALMERA BAY</h1>
+  <h2>— VICE RUN 3D —</h2>
+  <p>Courier <b>Rio Solano</b> takes one last chain of jobs for fixer <b>Marisol Vega</b> in a sun-soaked
+     coastal city. Steal cars, run packages, outrun the law — and retire on the bay.</p>
+  <div class="controls">WASD — move &amp; drive · Shift — sprint · Mouse — orbit camera, Click — shoot<br>
+     E / F — enter &amp; exit cars (carjack!) · R — reload · Esc / P — pause · M — mute</div>
+  <div class="btns">
+    <button id="btnNew">NEW GAME</button>
+    <button id="btnContinue" class="ghost">CONTINUE</button>
+  </div>
+  <div class="hint">CLICK or press N — NEW GAME</div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
